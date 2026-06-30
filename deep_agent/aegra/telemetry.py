@@ -114,9 +114,13 @@ class LangfuseObservabilityProvider:
     The Langfuse v4 ``CallbackHandler`` auto-reads these keys from
     ``RunnableConfig.metadata``:
 
-    - ``langfuse_user_id`` — who triggered the run
-    - ``langfuse_session_id`` — groups traces by conversation (thread)
+    - ``langfuse_user_id`` — who triggered the run (encrypted user_sub for privacy)
+    - ``langfuse_session_id`` — permanent session ID from Gateway (X-Session-Id header)
     - ``langfuse_trace_name`` — human-readable trace name in the UI
+
+    Session ID priority:
+    1. X-Session-Id header from Gateway (permanent per-user session)
+    2. Fallback to thread_id (conversation-level grouping)
     """
 
     def get_callbacks(self) -> list[Any]:
@@ -127,13 +131,21 @@ class LangfuseObservabilityProvider:
         self, run_id: str, thread_id: str, user_identity: str | None = None
     ) -> dict[str, Any]:
         """Return Langfuse metadata keys for RunnableConfig injection."""
+        from deep_agent.utils.pylogger import get_session_id
+
         metadata: dict[str, Any] = {
             "langfuse_trace_name": _get_trace_name(),
         }
         if user_identity:
             metadata["langfuse_user_id"] = user_identity
-        if thread_id:
+
+        # Prefer Gateway's permanent session_id over thread_id for session tracking
+        session_id = get_session_id()
+        if session_id:
+            metadata["langfuse_session_id"] = session_id
+        elif thread_id:
             metadata["langfuse_session_id"] = thread_id
+
         return metadata
 
     def is_enabled(self) -> bool:

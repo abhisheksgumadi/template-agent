@@ -82,18 +82,21 @@ app = FastAPI(title="template-agent-custom", lifespan=_lifespan)
 
 
 class TraceIDMiddleware(BaseHTTPMiddleware):
-    """Propagate X-Trace-ID from incoming requests into the logging context.
+    """Propagate X-Trace-ID and X-Session-Id from incoming requests into the logging context.
 
-    Every log line emitted during a request will include the trace_id,
-    enabling end-to-end correlation across UI → BFF → Agent.
+    Every log line emitted during a request will include the trace_id and session_id,
+    enabling end-to-end correlation across UI → BFF → Agent and LangFuse tracing.
     """
 
     async def dispatch(self, request: Request, call_next: Any) -> Any:
-        """Bind trace ID to logging context and echo it on the response."""
+        """Bind trace ID and session ID to logging context and echo them on the response."""
         trace_id = request.headers.get("x-trace-id") or uuid4().hex
-        bind_request_context(trace_id=trace_id)
+        session_id = request.headers.get("x-session-id", "")
+        bind_request_context(trace_id=trace_id, session_id=session_id)
         response = await call_next(request)
         response.headers["X-Trace-ID"] = trace_id
+        if session_id:
+            response.headers["X-Session-ID"] = session_id
         clear_request_context()
         return response
 

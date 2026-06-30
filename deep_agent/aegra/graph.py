@@ -128,6 +128,17 @@ async def agent(runtime: ServerRuntime) -> Any:
 
     user_identity = getattr(user, "identity", None) if user else None
 
+    # Log agent execution start with session_id for observability
+    from deep_agent.utils.pylogger import get_session_id
+
+    session_id = get_session_id()
+    logger.info(
+        "agent_execution_started",
+        user_sub=user_identity,
+        session_id=session_id,
+        has_auth=bool(sso_token),
+    )
+
     set_mcp_auth_context(sso_token, refresh_token, user_identity)
     orchestrator_cfg = agent_config.get_orchestrator_config()
     agent_name = orchestrator_cfg.get("name", "orchestrator")

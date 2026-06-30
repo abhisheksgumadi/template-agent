@@ -106,12 +106,14 @@ for _name in SILENT_LOGGERS:
 _trace_id_var: ContextVar[str | None] = ContextVar("trace_id", default=None)
 _user_id_var: ContextVar[str | None] = ContextVar("user_id", default=None)
 _thread_id_var: ContextVar[str | None] = ContextVar("thread_id", default=None)
+_session_id_var: ContextVar[str | None] = ContextVar("session_id", default=None)
 
 
 def bind_request_context(
     trace_id: str | None = None,
     user_id: str | None = None,
     thread_id: str | None = None,
+    session_id: str | None = None,
 ) -> None:
     """Bind per-request identifiers into the logging context.
 
@@ -124,6 +126,8 @@ def bind_request_context(
         _user_id_var.set(user_id)
     if thread_id:
         _thread_id_var.set(thread_id)
+    if session_id:
+        _session_id_var.set(session_id)
 
 
 def clear_request_context() -> None:
@@ -131,6 +135,12 @@ def clear_request_context() -> None:
     _trace_id_var.set(None)
     _user_id_var.set(None)
     _thread_id_var.set(None)
+    _session_id_var.set(None)
+
+
+def get_session_id() -> str | None:
+    """Get the current session_id from request context."""
+    return _session_id_var.get()
 
 
 def _inject_request_context(
@@ -140,12 +150,15 @@ def _inject_request_context(
     rid = _trace_id_var.get()
     uid = _user_id_var.get()
     tid = _thread_id_var.get()
+    sid = _session_id_var.get()
     if rid:
         event_dict["trace_id"] = rid
     if uid:
         event_dict["user_id"] = uid
     if tid:
         event_dict["thread_id"] = tid
+    if sid:
+        event_dict["session_id"] = sid
     event_dict["service"] = SERVICE_NAME
     return event_dict
 
